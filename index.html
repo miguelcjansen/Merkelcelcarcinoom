@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>TNM Dashboard – Merkelcelcarcinoom</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+:root{
+--bg:#0b1020;
+--fg:#e9ecff;
+--muted:#aab2e6;
+--line:#24315e;
+--sel:#1a2550;
+--selLine:#7aa2ff;
+--card:#121a33;
+}
+
+body{
+font-family:Arial,Helvetica,sans-serif;
+background:var(--bg);
+color:var(--fg);
+padding:14px;
+margin:0;
+}
+
+h1{font-size:18px;margin-bottom:10px}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr 1fr;
+gap:12px;
+}
+
+.section{
+border:1px solid var(--line);
+border-radius:12px;
+padding:10px;
+background:rgba(18,26,51,.28);
+margin-bottom:12px;
+}
+
+.section b{
+display:block;
+margin-bottom:6px;
+}
+
+.item{
+border:1px solid var(--line);
+border-radius:10px;
+padding:8px;
+margin:5px 0;
+cursor:pointer;
+display:flex;
+gap:8px;
+background:rgba(0,0,0,.1);
+}
+
+.item.active{
+background:var(--sel);
+border-color:var(--selLine);
+}
+
+.code{
+font-family:monospace;
+font-weight:bold;
+min-width:55px;
+}
+
+.result{
+border:1px solid var(--line);
+border-radius:12px;
+padding:10px;
+background:var(--card);
+}
+
+.hidden{
+display:none;
+}
+
+.muted{
+color:var(--muted);
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>TNM Dashboard – Merkelcelcarcinoom</h1>
+
+<div class="grid">
+
+<div class="section">
+<b>T – Primaire tumor</b>
+
+<div class="item" data-group="T" data-value="Tis"><span class="code">Tis</span>In situ</div>
+<div class="item" data-group="T" data-value="T1"><span class="code">T1</span>Primaire tumor ≤ 2 cm</div>
+<div class="item" data-group="T" data-value="T2"><span class="code">T2</span>Primaire tumor &gt;2 en ≤5 cm</div>
+<div class="item" data-group="T" data-value="T3"><span class="code">T3</span>Primaire tumor &gt;5 cm</div>
+<div class="item" data-group="T" data-value="T4"><span class="code">T4</span>Doorgroei in bot/spier/fascie/kraakbeen</div>
+
+</div>
+
+<div class="section">
+<b>N – Regionale lymfeklieren</b>
+
+<div class="item" data-group="N" data-value="N0"><span class="code">N0</span>Geen positieve lymfeklieren</div>
+<div class="item" data-group="N" data-value="N1"><span class="code">N1</span>Positieve loco-regionale lymfeklier</div>
+<div class="item" data-group="N" data-value="N2"><span class="code">N2</span>In-transit of satellietmetastasen</div>
+
+</div>
+
+<div class="section">
+<b>M – Metastasen</b>
+
+<div class="item" data-group="M" data-value="M0"><span class="code">M0</span>Geen metastasen</div>
+<div class="item" data-group="M" data-value="M1"><span class="code">M1</span>Metastasen op afstand</div>
+
+</div>
+
+</div>
+
+<div id="stageI_II" class="section hidden">
+<b>Aanvullende klinische factoren (stadium I–II)</b>
+
+<div class="item" data-group="margin" data-value="yes"><span class="code">1 cm</span>Marge haalbaar</div>
+<div class="item" data-group="margin" data-value="no"><span class="code">&lt;1 cm</span>Marge niet haalbaar</div>
+
+<div class="item" data-group="size" data-value="gt1"><span class="code">&gt;1 cm</span>Tumor &gt;1 cm</div>
+<div class="item" data-group="size" data-value="lt1"><span class="code">≤1 cm</span>Tumor ≤1 cm</div>
+
+<div class="item" data-group="risk" data-value="yes"><span class="code">+</span>Negatieve factoren</div>
+<div class="item" data-group="risk" data-value="no"><span class="code">−</span>Geen negatieve factoren</div>
+
+</div>
+
+<div id="stageIII" class="section hidden">
+<b>Nodale risicofactoren (stadium III)</b>
+
+<div class="item" data-group="nodes" data-value="gt2"><span class="code">&gt;2</span>&gt;2 macroscopische klieren</div>
+<div class="item" data-group="nodes" data-value="le2"><span class="code">≤2</span>≤2 macroscopische klieren</div>
+
+<div class="item" data-group="ece" data-value="yes"><span class="code">ECE+</span>Extracapsulaire extensie</div>
+<div class="item" data-group="ece" data-value="no"><span class="code">ECE−</span>Geen extracapsulaire extensie</div>
+
+</div>
+
+<div class="section">
+<b>Conclusie</b>
+<div class="result" id="output"></div>
+</div>
+
+<script>
+
+let state={T:null,N:null,M:null,margin:null,size:null,risk:null,nodes:null,ece:null};
+
+function stadium(T,N,M){
+
+if(!T||!N||!M)return "?";
+
+if(M==="M1")return "IV";
+
+if(T==="Tis" && N==="N0")return "0";
+
+if(N==="N0"){
+if(T==="T1")return "I";
+return "II";
+}
+
+return "III";
+
+}
+
+function showSections(st){
+
+document.getElementById("stageI_II").classList.add("hidden");
+document.getElementById("stageIII").classList.add("hidden");
+
+if(st==="I"||st==="II")document.getElementById("stageI_II").classList.remove("hidden");
+
+if(st==="III")document.getElementById("stageIII").classList.remove("hidden");
+
+}
+
+function treatment(st){
+
+if(st==="IV")return "Systemische therapie (chemotherapie / anti-PD-L1).";
+
+if(st==="III"){
+
+let base="Excisie + klierdissectie.";
+
+if(state.nodes==="gt2"||state.ece==="yes")
+return base+" Postoperatieve radiotherapie adviseren.";
+
+if(state.nodes && state.ece)
+return base+" Geen indicatie voor postoperatieve radiotherapie.";
+
+return base;
+
+}
+
+if(st==="I"||st==="II"){
+
+if(state.margin==="no")
+return "Overweeg Mohs chirurgie + postoperatieve radiotherapie.";
+
+if(state.margin==="yes"){
+
+if(state.size==="gt1")return "Excisie + postoperatieve radiotherapie.";
+
+if(state.size==="lt1" && state.risk==="yes")
+return "Excisie + postoperatieve radiotherapie.";
+
+if(state.size==="lt1" && state.risk==="no")
+return "Excisie zonder radiotherapie.";
+
+return "Excisie met 1 cm marge.";
+}
+
+}
+
+return "";
+
+}
+
+function update(){
+
+let T=state.T||"Tx";
+let N=state.N||"Nx";
+let M=state.M||"Mx";
+
+let html=`<b>TNM:</b> ${T} ${N} ${M}`;
+
+if(state.T&&state.N&&state.M){
+
+let st=stadium(state.T,state.N,state.M);
+
+html+=`<br><b>Stadium:</b> ${st}`;
+
+showSections(st);
+
+html+=`<br><br><b>Behandeling:</b><br>${treatment(st)}`;
+
+}else{
+
+html+=`<br><span class="muted">Selecteer T, N en M</span>`;
+
+}
+
+document.getElementById("output").innerHTML=html;
+
+}
+
+document.querySelectorAll(".item").forEach(i=>{
+
+i.onclick=()=>{
+
+let g=i.dataset.group;
+
+document.querySelectorAll(`.item[data-group=${g}]`).forEach(x=>x.classList.remove("active"));
+
+i.classList.add("active");
+
+state[g]=i.dataset.value;
+
+update();
+
+};
+
+});
+
+update();
+
+</script>
+
+</body>
+</html>
